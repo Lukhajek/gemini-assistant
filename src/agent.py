@@ -57,7 +57,7 @@ def prewarm(proc: JobProcess):
 server.setup_fnc = prewarm
 
 
-@server.rtc_session(agent_name="Gemini")
+@server.rtc_session(agent_name="Cool")
 async def my_agent(ctx: JobContext):
     # Logging setup
     # Add any other context you want in all log entries here
@@ -70,7 +70,21 @@ async def my_agent(ctx: JobContext):
         llm=google.realtime.RealtimeModel(
             voice="Puck",
             temperature=0.8,
+            # realtime_input_config=types.RealtimeInputConfig(
+            #     automatic_activity_detection=types.AutomaticActivityDetection(
+            #         disabled=True,
+            #     ),
+            # ),
+            instructions="You are kind",
+            model="gemini-2.5-flash-native-audio-preview-09-2025"
         ),
+        # turn_detection=MultilingualModel(), # or EnglishModel()
+        # vad=silero.VAD.load(
+        #     min_silence_duration=1
+        # ),
+        # min_endpointing_delay=1,
+        # max_endpointing_delay=4,
+
 
 
         #  # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
