@@ -11,9 +11,12 @@ from livekit.agents import (
     cli,
     inference,
     room_io,
+    mcp,
 )
-from livekit.plugins import noise_cancellation, silero
+from livekit.plugins import noise_cancellation, silero, google, deepgram, elevenlabs
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+from google.genai import types
+import os
 
 logger = logging.getLogger("agent")
 
@@ -23,10 +26,24 @@ load_dotenv(".env.local")
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
-            You eagerly assist users with their questions by providing information from your extensive knowledge.
-            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
+            instructions="""Jsi inteligentní hlasový asistent pro chytrou domácnost (muž), dostupný na telefonní lince. Tvým úkolem je pomáhat volajícím ovládat jejich domov a poskytovat informace o stavu zařízení pomocí nástrojů Home Assistant.
+
+            Klíčové zásady pro tvé chování:
+            1. Identita a tón: Jsi přátelský, profesionální a věcný. Představ se jako "Váš domácí asistent". Mluv přirozenou, mluvenou češtinou.
+            2. Optimalizace pro hlas: Protože komunikuješ přes telefon, tvoje odpovědi musí být krátké a srozumitelné. Nikdy nepoužívej žádné formátování (hvězdičky, odrážky), emoji ani složité symboly.
+            3. Ovládání domácnosti: Máš přístup k ovládání světel, oken (žaluzií), médií a scén. Když volající požádá o akci, nejdříve ji potvrď a hned proveď (např. "Rozumím, zatahuji žaluzie v obývacím pokoji").
+            4. Práce s kontextem: Pokud uživatel neřekne místnost a zařízení je ve více místnostech, zdvořile se zeptej na upřesnění. Pro celkový přehled o domácnosti používej nástroj pro zjištění kontextu (GetLiveContext).
+            5. Potvrzení úspěchu: Po vykonání příkazu krátce potvrď výsledek, pokud je to relevantní. Pokud se příkaz nepodaří, stručně vysvětli proč (např. "Omlouvám se, ale světlo v kuchyni neodpovídá").
+
+            DOKUMENTACE ZAŘÍZENÍ A NÁSTROJŮ:
+            - Máš k dispozici nástroje začínající "Hass" pro ovládání Home Assistant.
+            - Seznam zařízení:
+                * Obývací pokoj: Světlo obývací pokoj, LED pásek, LED pásek - TV, LED pásek - stůl, Living Room (reproduktor), Living Room TV, Okno 1 & 2 (žaluzie), Scény (Scéna vypnutá světla, Světlá scéna, TV scéna).
+                * Koupelna: Světlo koupelna, Bathroom speaker.
+                * Kuchyně: Světlo kuchyně.
+            - Pokud uživatel řekne "Zatáhni žaluzie", použij `HassSetPosition` s hodnotou 0 pro "Okno 1" a "Okno 2".
+            - Pro nákupní seznam používej `HassListAddItem` s názvem seznamu "Nákupní seznam".
+            - Pokud se uživatel zeptá "Co se u nás děje?", použij `GetLiveContext` a shrň stavy.""",
         )
 
     # To add tools, use the @function_tool decorator.
@@ -57,7 +74,7 @@ def prewarm(proc: JobProcess):
 server.setup_fnc = prewarm
 
 
-@server.rtc_session()
+@server.rtc_session(agent_name="Gemini")
 async def my_agent(ctx: JobContext):
     # Logging setup
     # Add any other context you want in all log entries here
@@ -67,16 +84,32 @@ async def my_agent(ctx: JobContext):
 
     # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
+        # llm=google.realtime.RealtimeModel(
+        #     voice="Puck",
+        #     temperature=0.8,
+        #     instructions="You are a helpful assistant",
+        #     thinking_config=types.ThinkingConfig(
+        #         # include_thoughts=False,
+        #         thinking_budget=1024,
+        #     ),
+        # ),
+
+
+         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
+        stt=deepgram.STT(
+            model="nova-2",
+            language="cs"
+        ),
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=inference.LLM(model="openai/gpt-4.1-mini"),
+        llm=google.LLM(
+            model="gemini-3-flash-preview",
+        ),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=inference.TTS(
-            model="cartesia/sonic-3", voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
+        tts=elevenlabs.TTS(
+            language="cs"
         ),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
@@ -84,7 +117,17 @@ async def my_agent(ctx: JobContext):
         vad=ctx.proc.userdata["vad"],
         # allow the LLM to generate a response while waiting for the end of turn
         # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
-        preemptive_generation=True,
+        # preemptive_generation=True,
+
+
+        mcp_servers=[
+            mcp.MCPServerHTTP(
+                url="https://assistant.hajas.xyz/api/mcp",
+                headers={
+                    "Authorization": "Bearer " + os.getenv("ASSISTANT_KEY"),
+                },
+            )       
+        ]
     )
 
     # To use a realtime model instead of a voice pipeline, use the following session setup instead.
