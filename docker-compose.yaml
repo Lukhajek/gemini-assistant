@@ -6,5 +6,4 @@ services:
     container_name: livekit-agent-cool
     env_file:
       - .env.local
-    network_mode: "host" 
     restart: unless-stopped
