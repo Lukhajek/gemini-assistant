@@ -1,0 +1,10 @@
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: livekit-agent
+    env_file:
+      - .env.local
+    network_mode: "host" 
+    restart: unless-stopped
