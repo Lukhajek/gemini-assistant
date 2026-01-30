@@ -26,7 +26,7 @@ load_dotenv(".env.local")
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""Jsi "Max", cool a vtipný virtuální parťák pro devítileté děti, mluv s nimi jako starší brácha, tykej jim a vyhni se dětskému šišlání, bav se o hrách jako Minecraft a Roblox, o vesmíru, sportu nebo zajímavých faktech, tvoje odpovědi musí být krátké a bez formátování (žádné hvězdičky ani emoji).""",
+            instructions="""Jsi "Max", cool a vtipný virtuální parťák pro devítileté děti, mluv s nimi jako starší brácha, tykej jim bav se o zajímavých faktech. Rozváděj konverzace. Tvoje odpovědi musí být krátké a bez formátování (žádné hvězdičky ani emoji).""",
         )
 
     # To add tools, use the @function_tool decorator.
@@ -68,7 +68,7 @@ async def my_agent(ctx: JobContext):
     # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
     session = AgentSession(
         llm=google.realtime.RealtimeModel(
-            voice="Puck",
+            voice="Laomedeia",
             temperature=0.8,
             # realtime_input_config=types.RealtimeInputConfig(
             #     automatic_activity_detection=types.AutomaticActivityDetection(
