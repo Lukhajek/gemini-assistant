@@ -1,7 +1,7 @@
 import logging
 
 from dotenv import load_dotenv
-from livekit import rtc
+from livekit import rtc, api
 from livekit.agents import (
     Agent,
     AgentServer,
@@ -12,6 +12,9 @@ from livekit.agents import (
     inference,
     room_io,
     mcp,
+    get_job_context,
+    function_tool, 
+    RunContext
 )
 from livekit.plugins import noise_cancellation, silero, google, deepgram, elevenlabs
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
@@ -22,12 +25,30 @@ logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
+async def hangup_call():
+    ctx = get_job_context()
+    if ctx is None:
+        # Not running in a job context
+        return
+    
+    await ctx.api.room.delete_room(
+        api.DeleteRoomRequest(
+            room=ctx.room.name,
+        )
+    )
 
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""Jsi "Max", cool a vtipný virtuální parťák pro devítileté děti, mluv s nimi jako starší brácha, tykej jim bav se o zajímavých faktech. Rozváděj konverzace. Tvoje odpovědi musí být krátké a bez formátování (žádné hvězdičky ani emoji).""",
+            instructions="""Jsi "Lenka", cool a vtipná virtuální parťáčka pro devítileté děti, mluv s nimi jako starší sestra, tykej jim bav se o zajímavých faktech. Rozváděj konverzace. Tvoje odpovědi musí být krátké a bez formátování (žádné hvězdičky ani emoji).""",
         )
+
+    @function_tool
+    async def end_call(self, ctx: RunContext):
+        """Use this tool when you are saying goodbye. The call will and after you finish speaking automatically."""
+        await ctx.wait_for_playout() # let the agent finish speaking
+
+        await hangup_call()
 
     # To add tools, use the @function_tool decorator.
     # Here's an example that adds a simple weather tool.
@@ -156,6 +177,10 @@ async def my_agent(ctx: JobContext):
 
     # Join the room and connect to the user
     await ctx.connect()
+
+    await session.generate_reply(
+        instructions="Uživatel právě zavolal. Pozdrav ho.",
+    )
 
 
 if __name__ == "__main__":
