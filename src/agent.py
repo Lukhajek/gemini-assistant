@@ -165,6 +165,11 @@ async def my_agent(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
+    await session.say(
+        "Dobrý den, váš asistent. Prosím?",
+        allow_interruptions=False,
+    )
+
 
 if __name__ == "__main__":
     cli.run_app(server)
