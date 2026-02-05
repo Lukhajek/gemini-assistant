@@ -108,8 +108,10 @@ async def my_agent(ctx: JobContext):
         ),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=elevenlabs.TTS(
-            language="cs"
+        tts=google.beta.GeminiTTS(
+            model="gemini-2.5-flash-preview-tts",
+            voice_name="Zephyr",
+            instructions="Mluv přátelským, přirozeným hlasem.",
         ),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
